@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
+from sklearn.impute import SimpleImputer
 import joblib
 
 # Load the dataset
@@ -19,17 +20,65 @@ wine_data = pd.read_csv(file_path)
 # Drop unnecessary columns (e.g., 'Id')
 wine_data = wine_data.drop(columns=['Id'], errors='ignore')
 
-# Check for missing values
+# Check and visualize missing values
 if wine_data.isnull().sum().sum() > 0:
-    wine_data = wine_data.dropna()
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(wine_data.isnull(), cbar=False, cmap='viridis')
+    plt.title('Missing Values Heatmap')
+    plt.show()
 
-# Analyze features like density and acidity
-sns.pairplot(wine_data, vars=['density', 'pH', 'fixed acidity', 'volatile acidity'], hue='quality')
+# Impute missing values
+imputer = SimpleImputer(strategy='median')
+wine_data.iloc[:, :] = imputer.fit_transform(wine_data)
+
+# Descriptive statistics
+print("Descriptive Statistics:")
+print(wine_data.describe())
+
+# Skewness and kurtosis
+print("\nSkewness and Kurtosis for Numerical Features:")
+print(wine_data.skew())
+print(wine_data.kurtosis())
+
+# Distribution of target variable 'quality'
+plt.figure(figsize=(8, 6))
+ax = sns.countplot(x='quality', data=wine_data, palette='viridis')
+for p in ax.patches:
+    ax.annotate(f"{p.get_height() / len(wine_data) * 100:.2f}%",
+                (p.get_x() + p.get_width() / 2., p.get_height()),
+                ha='center', va='baseline', fontsize=10)
+plt.title('Distribution of Wine Quality')
+plt.show()
+
+# Histograms for numerical features
+wine_data.hist(bins=30, figsize=(15, 10), color='skyblue')
+plt.suptitle('Histograms of Numerical Features', size=16)
+plt.show()
+
+# Box plots for numerical features to check for outliers
+plt.figure(figsize=(15, 10))
+sns.boxplot(data=wine_data, palette='viridis')
+plt.title('Box Plots of Numerical Features')
+plt.xticks(rotation=90)
+plt.show()
+
+# Identify and count potential outliers
+Q1 = wine_data.quantile(0.25)
+Q3 = wine_data.quantile(0.75)
+IQR = Q3 - Q1
+outliers = ((wine_data < (Q1 - 1.5 * IQR)) | (wine_data > (Q3 + 1.5 * IQR))).sum()
+print("\nPotential Outliers by Feature:")
+print(outliers)
+
+# Analyze features like density and acidity with pairplot
+sampled_data = wine_data.sample(500, random_state=42)
+sns.pairplot(sampled_data, vars=['density', 'pH', 'fixed acidity', 'volatile acidity'], hue='quality', palette='viridis')
 plt.show()
 
 # Correlation heatmap
 plt.figure(figsize=(10, 8))
-sns.heatmap(wine_data.corr(), annot=True, cmap='coolwarm')
+corr_matrix = wine_data.corr().round(2)
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f')
 plt.title('Feature Correlation Heatmap')
 plt.show()
 
